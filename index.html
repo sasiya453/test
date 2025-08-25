@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-t">
   <title>Obscura Vault - Courses</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="selenix.css">
@@ -139,21 +139,10 @@
       transition: opacity 0.3s ease;
     }
     
-    /* Hide controls when not interacting on mobile */
-    @media (max-width: 768px) {
-      .player-shell:not(:hover) .controls {
-        opacity: 0;
-        pointer-events: none;
-      }
-      
-      .player-shell:hover .controls {
-        opacity: 1;
-      }
-      
-      /* Hide volume controls in normal mobile view */
-      .volume-control {
-        display: none;
-      }
+    /* Hide controls when not interacting on mobile (touch devices) */
+    .player-shell.is-mobile:not(.show-controls) .controls {
+      opacity: 0;
+      pointer-events: none;
     }
     
     .row {
@@ -770,6 +759,12 @@
     const videoElement = $('#ytPlayer');
     let lastVolume = state.player.getVolume();
 
+    // Add class to shell if on a touch device, for CSS targeting
+    const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (isMobile) {
+      shell.classList.add('is-mobile');
+    }
+
     // Show/hide buttons based on device
     if (window.innerWidth <= 768) {
       fsBtn.style.display = 'inline-flex';
@@ -830,34 +825,26 @@
         }
     });
 
-    // Mobile tap to play/pause
+    // On mobile, tap video to toggle controls and play/pause
     antiIframe.addEventListener('click', (e) => {
-      if (window.innerWidth <= 768) {
-        if (!state.player) return;
-        const st = state.player.getPlayerState();
-        if (st === YT.PlayerState.PLAYING) {
-          state.player.pauseVideo();
-        } else {
-          state.player.playVideo();
-        }
-        e.stopPropagation();
-      }
-    });
+      if (!shell.classList.contains('is-mobile')) return; // Only run on mobile
 
-    // Show controls on mobile when tapping video
-    antiIframe.addEventListener('touchstart', (e) => {
-      if (window.innerWidth <= 768) {
-        const controls = $('#controls');
-        controls.style.opacity = '1';
-        controls.style.pointerEvents = 'all';
-        
-        // Hide controls after 3 seconds
-        clearTimeout(window.controlsTimeout);
-        window.controlsTimeout = setTimeout(() => {
-          controls.style.opacity = '0';
-          controls.style.pointerEvents = 'none';
-        }, 3000);
+      // 1. Always show controls on tap and set a timer to hide them
+      shell.classList.add('show-controls');
+      clearTimeout(window.controlsTimeout); // Reset timer
+      window.controlsTimeout = setTimeout(() => {
+        shell.classList.remove('show-controls');
+      }, 3500); // Hide after 3.5s
+
+      // 2. Toggle Play/Pause
+      if (!state.player) return;
+      const st = state.player.getPlayerState();
+      if (st === YT.PlayerState.PLAYING) {
+        state.player.pauseVideo();
+      } else {
+        state.player.playVideo();
       }
+      e.stopPropagation();
     });
 
     // Seek
