@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-t">
+  <meta charset="utf-8">
   <title>Obscura Vault - Courses</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="selenix.css">
@@ -826,7 +826,7 @@
     });
 
     // On mobile, tap video to toggle controls and play/pause
-    antiIframe.addEventListener('click', (e) => {
+    antiIframe.addEventListener('touchend', (e) => {
       if (!shell.classList.contains('is-mobile')) return; // Only run on mobile
 
       // 1. Always show controls on tap and set a timer to hide them
@@ -844,6 +844,7 @@
       } else {
         state.player.playVideo();
       }
+      e.preventDefault(); // Prevent ghost click
       e.stopPropagation();
     });
 
