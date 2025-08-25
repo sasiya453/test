@@ -202,18 +202,20 @@
     if (locked) return;
     locked = true;
     setReason(reason || "Policy violation");
-    lockEl.classList.remove("hidden");
+    if (lockEl) lockEl.classList.remove("hidden");
     // Optional: blur the page when locked
     document.body.style.filter = "blur(20px)";
   }
   function hideLock() {
     if (tripped) return;
     locked = false;
-    lockEl.classList.add("hidden");
+    if (lockEl) lockEl.classList.add("hidden");
     document.body.style.filter = "none";
   }
 
-  reloadBtn.addEventListener("click", () => location.reload());
+  if (reloadBtn) {
+    reloadBtn.addEventListener("click", () => location.reload());
+  }
 
   // Prevent context menu, copy, etc.
   const deny = e => { e.preventDefault(); e.stopPropagation(); return false; };
@@ -260,17 +262,3 @@
    
 
 })();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
