@@ -136,11 +136,17 @@
       display: grid;
       gap: 8px;
       padding: 10px 12px;
+
+      /* Safe-area padding so controls are not under the notch/home bar */
+      padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      padding-left: calc(12px + env(safe-area-inset-left));
+      padding-right: calc(12px + env(safe-area-inset-right));
+
       background: linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,.0));
       transition: opacity 0.3s ease;
     }
     
-    /* Hide controls when not interacting on mobile */
+    /* Hide controls when not interacting on mobile (but NOT in fullscreen/fill) */
     @media (max-width: 768px) {
       .player-shell:not(:hover) .controls {
         opacity: 0;
@@ -154,6 +160,16 @@
       /* Hide volume controls in normal mobile view */
       .volume-control {
         display: none;
+      }
+    }
+
+    /* Always show controls in fullscreen or landscape fill mode on phones */
+    @media (max-width: 768px) {
+      .player-shell:fullscreen .controls,
+      .player-shell:-webkit-full-screen .controls,
+      .player-shell.fill-viewport .controls {
+        opacity: 1 !important;
+        pointer-events: auto !important;
       }
     }
     
@@ -817,6 +833,26 @@
   document.addEventListener('fullscreenchange', updateOrientationUI);
   /* ===== End auto-rotate handling ===== */
 
+  // Helper: briefly show controls (no-op hide in fullscreen/fill mode)
+  function showControlsTemporarily(ms=3000){
+    const controls = $('#controls');
+    const shell = $('#playerShell');
+    if (!controls) return;
+    controls.style.opacity = '1';
+    controls.style.pointerEvents = 'all';
+
+    // If in fullscreen or fill-viewport, keep them visible (CSS forces visibility)
+    const inFullscreen = !!document.fullscreenElement;
+    const inFill = shell?.classList.contains('fill-viewport');
+    if (inFullscreen || inFill) return;
+
+    clearTimeout(window.controlsTimeout);
+    window.controlsTimeout = setTimeout(()=>{
+      controls.style.opacity = '0';
+      controls.style.pointerEvents = 'none';
+    }, ms);
+  }
+
   function wireControls(){
     const playBtn = $('#playPause');
     const playIcon = $('#playIcon');
@@ -896,7 +932,7 @@
         }
     });
 
-    // Mobile tap to play/pause
+    // Mobile tap to play/pause and show controls
     antiIframe.addEventListener('click', (e) => {
       if (window.innerWidth <= 768) {
         if (!state.player) return;
@@ -906,25 +942,17 @@
         } else {
           state.player.playVideo();
         }
+        showControlsTemporarily();
         e.stopPropagation();
       }
     });
 
     // Show controls on mobile when tapping video
-    antiIframe.addEventListener('touchstart', (e) => {
+    antiIframe.addEventListener('touchstart', () => {
       if (window.innerWidth <= 768) {
-        const controls = $('#controls');
-        controls.style.opacity = '1';
-        controls.style.pointerEvents = 'all';
-        
-        // Hide controls after 3 seconds
-        clearTimeout(window.controlsTimeout);
-        window.controlsTimeout = setTimeout(() => {
-          controls.style.opacity = '0';
-          controls.style.pointerEvents = 'none';
-        }, 3000);
+        showControlsTemporarily();
       }
-    });
+    }, {passive:true});
 
     // Seek
     seekBar.addEventListener('input', ()=>{
@@ -955,7 +983,6 @@
         if (document.pictureInPictureElement) {
           await document.exitPictureInPicture();
         } else if (document.pictureInPictureEnabled) {
-          // For YouTube iframe, we need to request PiP on the iframe
           const iframe = $('#ytPlayer');
           if (iframe && iframe.requestPictureInPicture) {
             await iframe.requestPictureInPicture();
@@ -974,11 +1001,13 @@
         else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
         else if (el.msRequestFullscreen) el.msRequestFullscreen();
         fsBtn.innerHTML = '<i class="bx bx-exit-fullscreen"></i><span>Exit</span>';
+        showControlsTemporarily(3500);
       } else {
         if (document.exitFullscreen) document.exitFullscreen();
         else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         else if (document.msExitFullscreen) document.msExitFullscreen();
         fsBtn.innerHTML = '<i class="bx bx-fullscreen"></i><span>Full</span>';
+        showControlsTemporarily(2000);
       }
     });
 
@@ -995,8 +1024,14 @@
             speed.style.display = 'inline-flex';
         }
       }
-      // Sync our fill-viewport class with current state
+      // Sync our fill-viewport class with current state and show controls briefly
       updateOrientationUI();
+      showControlsTemporarily(3500);
+    });
+
+    // Show controls when rotating on phones
+    window.addEventListener('orientationchange', () => {
+      showControlsTemporarily(3500);
     });
 
     // Tick updater
@@ -1069,6 +1104,8 @@
           wireControls();
           // Ensure correct layout after controls are ready
           updateOrientationUI();
+          // Show controls briefly on init (useful on mobile)
+          showControlsTemporarily(2500);
         }
       }
     });
